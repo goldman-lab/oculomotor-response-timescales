@@ -3,8 +3,9 @@ import scipy.optimize
 from scipy.sparse.linalg import LinearOperator
 import scipy.io as sio
 import tqdm
+import tqdm.notebook
 
-version = '20211004'
+version = '20220308'
 diagnosticMode = False # set to True to print outputs to console
 ITER_LIM_PER_IC = 20 # Number of restarts to use per starting point in exponential fits if fitting fails
 
@@ -287,7 +288,7 @@ def fitNExponentials_Likelihood(data_, trange_, initial_params, isConstrained=Fa
     return opt_result.x, -obj_fun(opt_result.x), opt_result.success
 
 
-def fitNEyePositions(tranges, data, use_likelihood = True, min_num_components=1, max_num_components = 6, num_ics=20, isConstrained = True, inverse_tau_min = 0, inverse_tau_max=None, verbose=False):
+def fitNEyePositions(tranges, data, use_likelihood = True, min_num_components=1, max_num_components = 6, num_ics=20, isConstrained = True, inverse_tau_min = 0, inverse_tau_max=None, verbose=False, notebookMode=False):
         """Fit M n-component multiexponential models to data
 
         Arguments:
@@ -312,17 +313,19 @@ def fitNEyePositions(tranges, data, use_likelihood = True, min_num_components=1,
                 Upper bound for inverse time constant fits
             verbose:
                 True to print diagnostic information to console
+            notebookMode:
+                True to use tqdm notebook widget
 
         Returns array of all model fit parameters, sum of squared errors, and log likelihoods.
         If min_num_components > 1, array will be left empty for indices < min_num_components
         """
         try:
             num_models = data.shape[0]
-            return fitNEyePositionsArray(tranges, data, use_likelihood=use_likelihood, min_num_components=min_num_components, max_num_components=max_num_components, num_ics=num_ics, isConstrained=isConstrained, inverse_tau_max=inverse_tau_max, inverse_tau_min=inverse_tau_min)
+            return fitNEyePositionsArray(tranges, data, use_likelihood=use_likelihood, min_num_components=min_num_components, max_num_components=max_num_components, num_ics=num_ics, isConstrained=isConstrained, inverse_tau_max=inverse_tau_max, inverse_tau_min=inverse_tau_min, notebookMode=notebookMode)
         except:
-            return fitNEyePositionsList(tranges, data, use_likelihood=use_likelihood, min_num_components=min_num_components, max_num_components=max_num_components, num_ics=num_ics, isConstrained=isConstrained, inverse_tau_max=inverse_tau_max, inverse_tau_min=inverse_tau_min)
+            return fitNEyePositionsList(tranges, data, use_likelihood=use_likelihood, min_num_components=min_num_components, max_num_components=max_num_components, num_ics=num_ics, isConstrained=isConstrained, inverse_tau_max=inverse_tau_max, inverse_tau_min=inverse_tau_min, notebookMode=notebookMode)
 
-def fitNEyePositionsArray(trange, data, use_likelihood = True, min_num_components = 1, max_num_components = 6, num_ics=20, isConstrained = True, inverse_tau_min = 0, inverse_tau_max=None, verbose=False):
+def fitNEyePositionsArray(trange, data, use_likelihood = True, min_num_components = 1, max_num_components = 6, num_ics=20, isConstrained = True, inverse_tau_min = 0, inverse_tau_max=None, verbose=False, notebookMode = False):
     def getCoefficients(initial_tau, n):
         numComponents = len(initial_tau)
         expmatrix = np.zeros((len(trange), numComponents))
@@ -337,11 +340,16 @@ def fitNEyePositionsArray(trange, data, use_likelihood = True, min_num_component
     number_of_models = data.shape[0]
     fits = np.array(np.zeros((max_num_components, number_of_models)), dtype=object)
 
-    for i in tqdm.trange(min_num_components, max_num_components+1, desc='Component', leave=False):
+    if notebookMode:
+        counter = tqdm.notebook.trange
+    else:
+        counter = tqdm.trange
+
+    for i in counter(min_num_components, max_num_components+1, desc='Component', leave=False):
         for n in range(number_of_models):
             # initialize fit
             fits[i-1,n] = np.empty((num_ics, 2*i))*np.nan
-        for j in tqdm.trange(num_ics, desc='IC', leave=False):
+        for j in counter(num_ics, desc='IC', leave=False):
             for k in range(ITER_LIM_PER_IC):
                 taus = np.power(10.,-(np.linspace(-1,2,i)+np.array([0.1,]+[0.1,]*(i-1))*np.random.randn(i)))
                 coeffs = np.zeros(i*number_of_models)
@@ -377,7 +385,7 @@ def fitNEyePositionsArray(trange, data, use_likelihood = True, min_num_component
     # sse has factor of 0.5 from cost function
     return fits, lls, 2*sse #, full_fits
 
-def fitNEyePositionsList(tranges, data, use_likelihood = True, min_num_components=1, max_num_components = 6, num_ics=20, isConstrained = True, inverse_tau_min = 0, inverse_tau_max=None, verbose=False):
+def fitNEyePositionsList(tranges, data, use_likelihood = True, min_num_components=1, max_num_components = 6, num_ics=20, isConstrained = True, inverse_tau_min = 0, inverse_tau_max=None, verbose=False, notebookMode = False):
     def getCoefficients(initial_tau, n):
         numComponents = len(initial_tau)
         expmatrix = np.zeros((len(tranges[n]), numComponents))
@@ -392,11 +400,16 @@ def fitNEyePositionsList(tranges, data, use_likelihood = True, min_num_component
     number_of_models = len(data) # data.shape[0]
     fits = np.array(np.zeros((max_num_components, number_of_models)), dtype=object)
 
-    for i in tqdm.trange(min_num_components, max_num_components+1, desc='Component', leave=False):
+    if notebookMode:
+        counter = tqdm.notebook.trange
+    else:
+        counter = tqdm.trange
+
+    for i in counter(min_num_components, max_num_components+1, desc='Component', leave=False):
         for n in range(number_of_models):
             # initialize fit
             fits[i-1,n] = np.empty((num_ics, 2*i))*np.nan
-        for j in tqdm.trange(num_ics, desc='IC', leave=False):
+        for j in counter(num_ics, desc='IC', leave=False):
             for k in range(ITER_LIM_PER_IC):
                 taus = np.power(10.,-(np.linspace(-1,2,i)+np.array([0.1,]+[0.1,]*(i-1))*np.random.randn(i)))
                 coeffs = np.zeros(i*number_of_models)
@@ -531,7 +544,7 @@ def blindDeconvN_NonLin(tranges, data, release_indices, dt, ics, mu=1, scale_fac
             if n == 0:
                 f_[:release_indices[0]] = x[:release_indices[0]]
             else:
-                f_[:release_indices[n]] = x[release_indices[n-1]:release_indices[n-1]+release_indices[n]]
+                f_[:release_indices[n]] = x[int(np.sum(release_indices[:n])):int(np.sum(release_indices[:n]))+release_indices[n]]
             fs[n] = f_
         model = fmatrix(x[-numComponents:], fs)
         return np.sum((model-dd)**2)
@@ -546,7 +559,7 @@ def blindDeconvN_NonLin(tranges, data, release_indices, dt, ics, mu=1, scale_fac
             if n == 0:
                 f_[:release_indices[n]] = x[:release_indices[n]]
             else:
-                f_[:release_indices[n]] = x[release_indices[n-1]:release_indices[n-1]+release_indices[n]]
+                f_[:release_indices[n]] = x[int(np.sum(release_indices[:n])):int(np.sum(release_indices[:n]))+release_indices[n]]
             fs[n] = f_
             p_ = exponentialModel(tranges[n], np.concatenate((x[-numComponents:], timeconstants)))
 
@@ -555,7 +568,7 @@ def blindDeconvN_NonLin(tranges, data, release_indices, dt, ics, mu=1, scale_fac
             if n == 0:
                 grad[:release_indices[0]] = grad_
             else:
-                grad[release_indices[n-1]:release_indices[n-1]+release_indices[n]] = grad_
+                grad[int(np.sum(release_indices[:n])):int(np.sum(release_indices[:n]))+release_indices[n]] = grad_
             models[n] = model_
 
         ## dE/dc
@@ -593,13 +606,13 @@ def blindDeconvN_NonLin(tranges, data, release_indices, dt, ics, mu=1, scale_fac
         if n == 0:
             f_[:release_indices[n]] = opt_result.x[:release_indices[n]]*np.sum(opt_result.x[-numComponents:])
         else:
-            f_[:release_indices[n]] = opt_result.x[release_indices[n-1]:release_indices[n-1]+release_indices[n]]*np.sum(opt_result.x[-numComponents:])
+            f_[:release_indices[n]] = opt_result.x[int(np.sum(release_indices[:n])):int(np.sum(release_indices[:n]))+release_indices[n]]*np.sum(opt_result.x[-numComponents:])
         fs[n] = f_
         ps[n] = exponentialModel(tranges[n], np.concatenate((c_final, timeconstants)))
 
     return fs, ps, c_final, obj_fun(opt_result.x), jac(opt_result.x)
 
-def blindDeconvN_Linear(tranges, data, release_indices, dt, ics, K = 100, thresh=1e-5, mu=1, scale_factor=1, dense=False):
+def blindDeconvN_Linear(tranges, data, release_indices, dt, ics, K = 100, thresh=1e-5, mu=1, scale_factor=1, dense=False, notebookMode = False):
     """Performs blind deconvolution of M eye position traces with a n-component multiexponential plant with unknown coefficients using alternating least squares,
     assuming applied force becomes zero at some point.
 
@@ -622,6 +635,8 @@ def blindDeconvN_Linear(tranges, data, release_indices, dt, ics, K = 100, thresh
             scaling applied to cost function
         dense:
             False to use sparse matrix methods
+        notebookMode:
+            True to use tqdm notebook widget
 
     Returns:
         list of M applied force traces,
@@ -685,7 +700,7 @@ def blindDeconvN_Linear(tranges, data, release_indices, dt, ics, K = 100, thresh
             if n == 0:
                 grad[:release_indices[0]] = grad_
             else:
-                grad[release_indices[n-1]:release_indices[n-1]+release_indices[n]] = grad_
+                grad[int(np.sum(release_indices[:n])):int(np.sum(release_indices[:n]))+release_indices[n]] = grad_
             models[n] = model_
 
         ## dE/dc
@@ -746,7 +761,12 @@ def blindDeconvN_Linear(tranges, data, release_indices, dt, ics, K = 100, thresh
     loss_p = np.zeros(K)
     loss_f = np.zeros((numModels, K))
 
-    for i in tqdm.trange(K):
+    if notebookMode:
+        counter = tqdm.notebook.trange
+    else:
+        counter = tqdm.trange
+
+    for i in counter(K):
         for n in range(numModels):
 
             succ, f_, loss_f[n,i] = find_f(ps[n], data[n], n)

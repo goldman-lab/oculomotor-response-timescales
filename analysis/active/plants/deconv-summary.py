@@ -79,7 +79,7 @@ if __name__ == "__main__":
     release_indices = [[] for i in range(len(traces))]
 
     for j in range(len(traces)):
-        tranges[j], eye_pos[j], release_indices[j] = prepareStepResponse(traces[j], conservative=True, num_components_sr=n)
+        tranges[j], eye_pos[j], release_indices[j] = prepareStepResponse(traces[j], conservative=False, num_components_sr=n)
         eye_pos[j] /= eye_pos[j][release_indices[j]-1]
 
     cs_nonlin = np.zeros((num_ics, n))

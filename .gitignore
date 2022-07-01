@@ -131,6 +131,8 @@ dmypy.json
 ## Personal scripts
 *.sh
 *.util.py
+analysis/method/
 
 ## Figures
 *.pdf
+*.png
